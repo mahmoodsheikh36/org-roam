@@ -387,8 +387,8 @@ If HASH is non-nil, use that as the file's hash without recalculating it."
        (not (org-entry-get (point) "ROAM_EXCLUDE"))
        (funcall org-roam-db-node-include-function)))
 
-(defun org-roam-db-map-nodes (fns)
-  "Run FNS over all nodes in the current buffer."
+(defun org-roam-db-map-header-nodes (fns)
+  "Run FNS over all header nodes in the current buffer."
   (org-with-wide-buffer
    (org-map-region
     (lambda ()
@@ -396,6 +396,14 @@ If HASH is non-nil, use that as the file's hash without recalculating it."
         (dolist (fn fns)
           (funcall fn))))
     (point-min) (point-max))))
+
+(defun org-roam-db-map-block-nodes (fns)
+  "Run FNS over all block nodes in the current buffer."
+  (org-block-map
+   (lambda ()
+     (dolist (fn fns)
+       (funcall fn)))
+   (point-min) (point-max)))
 
 (defun org-roam-db-map-links (fns)
   "Run FNS over all links in the current buffer."
@@ -469,7 +477,7 @@ INFO is the org-element parsed buffer."
           (org-roam-db-insert-aliases)
           (org-roam-db-insert-refs))))))
 
-(cl-defun org-roam-db-insert-node-data ()
+(cl-defun org-roam-db-insert-header-node-data ()
   "Insert node data for headline at point into the Org-roam cache."
   (when-let ((id (org-id-get)))
     (let* ((file (buffer-file-name (buffer-base-buffer)))
@@ -485,7 +493,7 @@ INFO is the org-element parsed buffer."
                                     file
                                     (line-number-at-pos)
                                     (1+ (- (point) (line-beginning-position))))
-                             (cl-return-from org-roam-db-insert-node-data))))
+                             (cl-return-from org-roam-db-insert-header-node-data))))
            (properties (org-entry-properties))
            (olp (org-get-outline-path nil 'use-cache))
            (title (org-link-display-format title)))
@@ -495,9 +503,26 @@ INFO is the org-element parsed buffer."
                 (error-message-string err)
                 title id file))
        [:insert :into nodes
-        :values $v1]
+                :values $v1]
        (vector id file level pos todo priority
                scheduled deadline title properties olp)))))
+
+(defun org-roam-db-insert-block-node-data ()
+  "Insert node data for block at point into the Org-roam cache."
+  (when-let* ((block (org-block-at-point))
+              (block-name (org-element-property :name block))
+              (file (buffer-file-name (buffer-base-buffer)))
+              (pos (point))
+              (title block-name))
+    (org-roam-db-query!
+     (lambda (err)
+       (lwarn 'org-roam :warning "%s for %s (%s) in %s"
+              (error-message-string err)
+              title id file))
+     [:insert :into nodes
+              :values $v1]
+     (vector block-name file "" pos "" ""
+             "" "" block-name "" ""))))
 
 (defun org-roam-db-insert-aliases ()
   "Insert aliases for node at point into Org-roam cache."
@@ -650,11 +675,13 @@ in `org-roam-db-sync'."
            (org-roam-db-insert-file content-hash)
            (org-roam-db-insert-file-node)
            (setq org-outline-path-cache nil)
-           (org-roam-db-map-nodes
-            (list #'org-roam-db-insert-node-data
+           (org-roam-db-map-header-nodes
+            (list #'org-roam-db-insert-header-node-data
                   #'org-roam-db-insert-aliases
                   #'org-roam-db-insert-tags
                   #'org-roam-db-insert-refs))
+           (org-roam-db-map-block-nodes
+            (list #'org-roam-db-insert-block-node-data))
            (setq org-outline-path-cache nil)
            (setq info (org-element-parse-buffer))
            (org-roam-db-map-links

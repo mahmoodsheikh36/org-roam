@@ -234,6 +234,15 @@ populated."
                                     (magit-section-up)
                                     (org-roam-node-at-point)))
         (t (org-with-wide-buffer
+            ;; handle block
+            (when-let* ((block (org-block-at-point))
+                        (block-name (org-element-property :name block)))
+              (org-roam-populate
+               (org-roam-node-create
+                :id block-name
+                :title block-name
+                :point (point))))
+            ;; handle heading
             (while (not (or (org-roam-db-node-p)
                             (bobp)
                             (eq (funcall outline-level)
@@ -1136,7 +1145,6 @@ and when nil is returned the node will be filtered out."
     (save-excursion
       (goto-char (org-roam-node-point node))
       (org-roam-property-remove "ROAM_ALIASES" alias))))
-
 
 (provide 'org-roam-node)
 ;;; org-roam-node.el ends here
