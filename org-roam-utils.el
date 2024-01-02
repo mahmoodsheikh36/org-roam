@@ -478,6 +478,15 @@ See <https://github.com/raxod502/straight.el/issues/520>."
     (insert (format "- Org-roam: %s" (org-roam-version)))
     (insert (format "- sqlite-connector: %s" org-roam-database-connector))))
 
+;;;###autoload
+(defun org-block-at-point ()
+  "return the block that the cursor is inside"
+  (let ((blk (org-element-at-point)))
+    (if (not (org-element-property :name blk)) ;; a block must have a :name
+        (setq blk (org-element-parent blk)))
+    (if (org-element-property :name blk)
+        blk
+      nil)))
 
 (provide 'org-roam-utils)
 ;;; org-roam-utils.el ends here

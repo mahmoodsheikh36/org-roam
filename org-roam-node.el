@@ -158,15 +158,6 @@ This path is relative to `org-roam-directory'."
 
 ;; Shim `string-glyph-compose' and `string-glyph-decompose' for Emacs versions that do not have it.
 
-(defun org-block-at-point ()
-  "return the block that the cursor is inside"
-  (let ((blk (org-element-at-point)))
-    (if (not (org-element-property :name blk)) ;; a block must have a :name
-        (setq blk (org-element-parent blk)))
-    (if (org-element-property :name blk)
-        blk
-      nil)))
-
 ;; The functions were introduced in emacs commit 3f096eb3405b2fce7c35366eb2dcf025dda55783 and the
 ;; (original) functions behind them aren't autoloaded anymore.
 (dolist (sym.replace
